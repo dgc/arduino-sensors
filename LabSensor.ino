@@ -1,9 +1,9 @@
 /* LabSensor.ino */
 
-#define OUT_CHANNEL "Arduino_Test"
+#define OUT_CHANNEL "Arduino_30_1081_1"
 #define CONTROL_CHANNEL OUT_CHANNEL "_Control"
 #define DEFAULT_PERIOD 10
-#define DEFAULT_MAC { 0x90, 0xA2, 0xDA, 0x0D, 0x0A, 0x77 } // 0x3B
+#define DEFAULT_MAC { 0x90, 0xA2, 0xDA, 0x0D, 0x0A, 0x3B } // 0x77 / 0x3B
 #define MQTT_SERVER { 152, 78, 131, 193 }
 #define MQTT_PORT 1883
 
@@ -183,8 +183,8 @@ void sensorRead() {
   String message = "";
   
   message = message + "{\"timestamp\":" + now();
-  message = message + ",\"A0\":" + analogRead2(A0) + ",\"A1\":" + analogRead2(A1) + "}";
-  //message = message + ",\"A0\":" + analogRead2(A0) + "}";
+  //message = message + ",\"A0\":" + analogRead2(A0) + ",\"A1\":" + analogRead2(A1) + "}";
+  message = message + ",\"A0\":" + analogRead2(A0) + "}";
 
   DPRINTLN(message);
   publishString(client, OUT_CHANNEL, message);
