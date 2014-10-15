@@ -1,11 +1,13 @@
 /* LabSensor.ino */
 
-#define OUT_CHANNEL "Arduino_30_1081_1"
+#define OUT_CHANNEL "Arduino_Test"
 #define CONTROL_CHANNEL OUT_CHANNEL "_Control"
 #define DEFAULT_PERIOD 10
-#define DEFAULT_MAC { 0x90, 0xA2, 0xDA, 0x0D, 0x0A, 0x3B } // 0x77 / 0x3B
+#define DEFAULT_MAC { 0x90, 0xA2, 0xDA, 0x0D, 0x0A, 0x77 } // 0x77 / 0x3B
 #define MQTT_SERVER { 152, 78, 131, 193 }
 #define MQTT_PORT 1883
+
+#define DHT22_PIN 5
 
 #define SETTINGS_MARKER 12783 /* Randomly chosen 15 bit number */
 
@@ -16,7 +18,7 @@
 #define PERIOD_OFFSET 22
 #define MAC_OFFSET 24
 
-#undef DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 #define DPRINT(x) Serial.print(x)
@@ -32,10 +34,17 @@
 #include <PubSubClient.h>
 #include <EEPROM.h>
 #include <JsonParser.h>
+#include <dht.h>
 #include <SimpleTimer.h>
 #include <Time.h>
 
 using namespace ArduinoJson::Parser;
+
+// DHT support
+
+dht DHT;
+
+// EEPROM support
 
 int getInt8(int offset) {
   return EEPROM.read(offset);
@@ -181,10 +190,21 @@ void publishString(PubSubClient &client, char *topic, String message) {
 void sensorRead() {
   DPRINTLN("sensorRead(): start");
   String message = "";
-  
+
+  int dht_status = DHT.read22(DHT22_PIN);
+
+
   message = message + "{\"timestamp\":" + now();
-  //message = message + ",\"A0\":" + analogRead2(A0) + ",\"A1\":" + analogRead2(A1) + "}";
-  message = message + ",\"A0\":" + analogRead2(A0) + "}";
+  message = message + ",\"A0\":" + analogRead2(A0);
+  message = message + ",\"A1\":" + analogRead2(A1);
+
+  if (dht_status == DHTLIB_OK) {
+    message = message + ",\"DHT_TEMP\":" + ((int) DHT.temperature);
+    message = message + ",\"DHT_HUMIDITY\":" + ((int) DHT.humidity);
+  }
+
+  message = message + "}";
+  //message = message + ",\"A0\":" + analogRead2(A0) + "}";
 
   DPRINTLN(message);
   publishString(client, OUT_CHANNEL, message);
@@ -224,17 +244,17 @@ void setup()
 
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
-  
+
   while (!Serial) {
     ; // wait for serial port to connect. Needed for Leonardo only
   }
-  
+
   char buf[20];
-  
+
   sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
   DPRINT("MAC address: ");
   DPRINTLN(buf);
-  
+
 #endif /* DEBUG */
 
   // Reset to default settings if the EEPROM hasn't been set yet.
@@ -246,10 +266,11 @@ void setup()
   DPRINTLN(getInt16(PERIOD_OFFSET));
 
   int ethernetStatus = Ethernet.begin(mac);
-  
+
   if (ethernetStatus == 0) {
     DPRINTLN("Could not configure the ethernet connection.");
-  } else {
+  } 
+  else {
     DPRINTLN("Connected to ethernet via DHCP.");
   }
 
@@ -269,7 +290,7 @@ void setup()
   // Get initial NTP time
 
   Udp.begin(localPort);
-  
+
   sendNTPpacket(timeServer);
   delay(1000);
   checkForNTPResponse();
@@ -283,6 +304,7 @@ void loop()
   client.loop();
   //DPRINTLN("loop(): done client");
 }
+
 
 
 
