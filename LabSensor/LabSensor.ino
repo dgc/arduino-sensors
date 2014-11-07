@@ -2,10 +2,11 @@
 
 #define OUT_CHANNEL "Arduino_Test"
 #define CONTROL_CHANNEL OUT_CHANNEL "_Control"
-#define DEFAULT_PERIOD 10
-#define DEFAULT_MAC { 0x90, 0xA2, 0xDA, 0x0D, 0x0A, 0x77 } // 0x77 / 0x3B
+#define DEFAULT_PERIOD 60
+#define DEFAULT_MAC { 0x90, 0xA2, 0xDA, 0x0D, 0x0A, 0x77 } /* 0x77 / 0x3B */
 #define MQTT_SERVER { 152, 78, 131, 193 }
 #define MQTT_PORT 1883
+#define NTP_PERIOD (60 * 15) /* 15 minutes */
 
 #define DHT22_PIN 5
 
@@ -159,9 +160,20 @@ void checkForNTPResponse() {
     // subtract seventy years:
     unsigned long epoch = secsSince1900 - seventyYears;
 
+    DPRINT("Time set (via NTP) to ");
+    DPRINTLN(epoch);
+
     // Set the onboard clock to the received time.
     setTime(epoch);
   }
+}
+
+// ---------------------------------------------------------------------
+
+void scheduledNTP() {
+  sendNTPpacket(timeServer);
+  delay(1000);
+  timer.setTimeout(1000, checkForNTPResponse);
 }
 
 // ---------------------------------------------------------------------
@@ -188,7 +200,7 @@ void publishString(PubSubClient &client, char *topic, String message) {
 }
 
 void sensorRead() {
-  DPRINTLN("sensorRead(): start");
+  //DPRINTLN("sensorRead(): start");
   String message = "";
 
   int dht_status = DHT.read22(DHT22_PIN);
@@ -208,7 +220,7 @@ void sensorRead() {
 
   DPRINTLN(message);
   publishString(client, OUT_CHANNEL, message);
-  DPRINTLN("sensorRead(): end");
+  //DPRINTLN("sensorRead(): end");
 }
 
 void processConfiguration(char* topic, byte* payload, unsigned int length) {
@@ -283,7 +295,7 @@ void setup()
   }
 
   timer_id = timer.setInterval(((long) getInt16(PERIOD_OFFSET)) * 1000, sensorRead);
-
+  timer.setInterval(((long) NTP_PERIOD) * 1000, scheduledNTP);
   //  setInt32(0, 64738);
   //  Serial.println(getInt32(0));
 
